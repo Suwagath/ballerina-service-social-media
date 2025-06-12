@@ -163,3 +163,30 @@ service /social\-media on new http:Listener(9090) {
     timestamp: time:utcNow(),
     details: string `uri=${path}`
 };
+
+
+type Created_date record {|
+    int year;
+    int month;
+    int day;
+    json...;
+|};
+
+type Meta record {|
+    string[] tags;
+    string category;
+    Created_date created_date;
+    json...;
+|};
+
+type NewRecordItem record {|
+    int id;
+    string description;
+    Meta meta;
+    json...;
+|};
+
+type NewRecord record {|
+    NewRecordItem[] newRecord;
+    json...;
+|};
