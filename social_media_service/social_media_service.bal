@@ -56,6 +56,8 @@ mysql:Client socialMediaDB = check new (
     ...dbConfig
 );
 
+http:Client sentimentAnalysisClient = check new ("http://localhost:9099/text-processing");
+
 type Post record {|
     @sql:Column {name: "id"}
     readonly int id;
@@ -69,6 +71,19 @@ type Post record {|
     string tags;
     @sql:Column {name: "user_id"}
     int userId;
+|};
+
+type NewPost record {
+    string description;
+    string category;
+    time:Date created_date;
+    string tags;
+    int userId;
+};
+
+type PostForbidden record {|
+    *http:Forbidden;
+    ErrorDetails body;
 |};
 
 service /social\-media on new http:Listener(9090) {
@@ -153,6 +168,37 @@ service /social\-media on new http:Listener(9090) {
         return postToPostWithMeta(check posts);
     }
 
+    resource function post users/[int id]/posts(NewPost newPost) returns http:Created|UserNotFound|PostForbidden|error {
+
+        User|error result = socialMediaDB->queryRow(`SELECT * FROM users WHERE id = ${newPost.userId}`);
+        if result is sql:NoRowsError {
+            ErrorDetails errorDetails = buildErrorPayload(string `id: ${newPost.userId}`, string `users/${newPost.userId}/posts`);
+            UserNotFound userNotFound = {
+                body: errorDetails
+            };
+            return userNotFound;
+        }
+
+        if result is User && result.id != newPost.userId {
+            ErrorDetails errorDetails = buildErrorPayload(string `id: ${newPost.userId}`, string `users/${newPost.userId}/posts`);
+            PostForbidden postForbidden = {
+                body: errorDetails
+            };
+            return postForbidden;
+        }
+        Sentiment|http:unionResult = check sentimentEndpoint->api/sentiment.post({text: newPost.description});
+
+        _ = check socialMediaDB->execute(
+            `INSERT INTO posts(description, category, created_date, tags, user_id) 
+             VALUES (${newPost.description}, ${newPost.category}, ${newPost.created_date}, ${newPost.tags}, ${newPost.userId})`
+        );
+
+        if unionResult is Sentiment {
+
+        }
+
+        return http:CREATED;
+    }
 };
 
 type Created_date record {|
@@ -188,6 +234,18 @@ function postToPostWithMeta(Post[] post) returns PostWithMeta[] => from var post
             }
         }
     };
+
+type Probability record {|
+    decimal neg;
+    decimal neutral;
+    decimal pos;
+|};
+
+type Sentiment record {|
+    Probability probability;
+    string label;
+|};
+
 
 
 function buildErrorPayload(string msg, string path) returns ErrorDetails => {
