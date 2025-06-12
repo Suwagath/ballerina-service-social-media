@@ -1,0 +1,10 @@
+### Get users
+GET http://localhost:9090/social-media/users/2
+
+HTTP/1.1 200  - OK
+content-type: application/json
+connection: close
+server: ballerina
+date: Thu, 12 Jun 2025 09:16:44 +0530
+content-encoding: gzip
+content-length: 116
