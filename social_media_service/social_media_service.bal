@@ -43,11 +43,32 @@ type DatabseConfig record {|
     int port;
 |};
 
-configurable DatabseConfig dbConfig = ?;
+configurable DatabseConfig dbConfig = {
+    host: "localhost",
+    user: "root",
+    password: "Castroaterice2day",
+    database: "social_media_database",
+    port: 3306
+};
 
 mysql:Client socialMediaDB = check new(
     ...dbConfig 
 );
+
+type Post record {|
+    @sql:Column { name: "id" }
+    readonly int id;
+    @sql:Column { name: "description" }
+    string description;
+    @sql:Column { name: "category" }
+    string category;
+    @sql:Column { name: "created_date" }
+    time:Date createdDate;
+    @sql:Column {name: "tags"}
+    string tags;
+    @sql:Column { name: "user_id" }
+    int userId;
+|};
 
 service /social\-media on new http:Listener(9090) {
 
@@ -102,5 +123,43 @@ service /social\-media on new http:Listener(9090) {
         return http:CREATED;
   };
 
+  resource function get posts() returns Post[]|error {
+    stream<Post, sql:Error?> postStream = socialMediaDB->query(`SELECT * FROM posts`);
+    return from var post in postStream select post;
+  }
+
+  // resource function to get the posts with their respective id
+  resource function get posts/[int id]() returns Post|error {
+    Post|sql:Error post = socialMediaDB->queryRow(`SELECT * FROM posts WHERE id = ${id}`);
+    return post;
+  }
+
+
+  # Get posts for a give user
+    #
+    # + id - The user ID for which posts are retrieved
+    # + return - A list of posts or error message
+    resource function get users/[int id]/posts() returns Post[]|UserNotFound|error {
+        User|error result = socialMediaDB->queryRow(`SELECT * FROM users WHERE id = ${id}`);
+        if result is sql:NoRowsError {
+            ErrorDetails errorDetails = buildErrorPayload(string `id: ${id}`, string `users/${id}/posts`);
+            UserNotFound userNotFound = {
+                body: errorDetails
+            };
+            return userNotFound;
+        }
+
+        stream<Post, sql:Error?> postStream = socialMediaDB->query(`SELECT id, description, category, created_date, tags FROM posts WHERE user_id = ${id}`);
+        Post[]|error posts = from Post post in postStream
+            select post;
+        return posts;
+    }
+
 
  };
+
+ function buildErrorPayload(string msg, string path) returns ErrorDetails => {
+    message: msg,
+    timestamp: time:utcNow(),
+    details: string `uri=${path}`
+};
