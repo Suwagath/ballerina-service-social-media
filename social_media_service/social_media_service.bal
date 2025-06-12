@@ -137,7 +137,7 @@ service /social\-media on new http:Listener(9090) {
     #
     # + id - The user ID for which posts are retrieved
     # + return - A list of posts or error message
-    resource function get users/[int id]/posts() returns Post[]|UserNotFound|error {
+    resource function get users/[int id]/posts() returns PostWithMeta[]|UserNotFound|error {
         User|error result = socialMediaDB->queryRow(`SELECT * FROM users WHERE id = ${id}`);
         if result is sql:NoRowsError {
             ErrorDetails errorDetails = buildErrorPayload(string `id: ${id}`, string `users/${id}/posts`);
@@ -150,7 +150,7 @@ service /social\-media on new http:Listener(9090) {
         stream<Post, sql:Error?> postStream = socialMediaDB->query(`SELECT id, description, category, created_date, tags FROM posts WHERE user_id = ${id}`);
         Post[]|error posts = from Post post in postStream
             select post;
-        return posts;
+        return postToPostWithMeta(check posts);
     }
 
 };
