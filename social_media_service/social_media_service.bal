@@ -2,6 +2,7 @@ import ballerina/http;
 import ballerina/sql;
 import ballerina/time;
 import ballerinax/mysql;
+import ballerina/constraint;
 // import ballerina/regexp;
 
 type User record {|
@@ -31,6 +32,9 @@ type UserNotFound record {|
 |};
 
 type NewUser record {|
+    @constraint:String {
+        minLength: 3
+    }
     string name;
     time:Date birthDate;
     string mobileNumber;
@@ -52,11 +56,35 @@ configurable DatabseConfig dbConfig = {
     port: 3306
 };
 
-mysql:Client socialMediaDB = check new (
+configurable http:RetryConfig retryConfig = {
+    interval: 2,
+    count: 3
+};
+
+final mysql:Client socialMediaDB = check initSocialMediaDB();
+
+function initSocialMediaDB() returns mysql:Client|error => check new (
     ...dbConfig
 );
 
-http:Client sentimentAnalysisClient = check new ("http://localhost:9099/text-processing");
+http:Client sentimentAnalysisClient = check new ("https://localhost:9099/text-processing", 
+    timeout = 30,
+    retryConfig = {...retryConfig},
+    secureSocket = {
+        cert: "./public.crt"
+    },
+    auth = {
+        tokenUrl: "https://localhost:9445/oauth2/token",
+        clientId: "FlfJYKBD2c925h4lkycqNZlC2l4a",
+        clientSecret: "PJz0UhTJMrHOo68QQNpvnqAY_3Aa",
+        scopes: "admin",
+        clientConfig: {
+            secureSocket: {
+                cert: "./public.crt"
+            }
+        }
+    }
+);
 
 type Post record {|
     @sql:Column {name: "id"}
@@ -124,9 +152,9 @@ service /social\-media on new http:Listener(9090) {
             `INSERT INTO users(name, birth_date, mobile_number) 
              VALUES (${newUser.name}, ${newUser.birthDate}, ${newUser.mobileNumber})`
             );
-            _ = check socialMediaDB->execute(
-            `INSERT INTO followers(name, birth_date, mobile_number) 
-             VALUES (${newUser.name}, ${newUser.birthDate}, ${newUser.mobileNumber})`);
+            // _ = check socialMediaDB->execute(
+            // `INSERT INTO followers(name, birth_date, mobile_number) 
+            //  VALUES (${newUser.name}, ${newUser.birthDate}, ${newUser.mobileNumber})`);
 
             check commit;
         }

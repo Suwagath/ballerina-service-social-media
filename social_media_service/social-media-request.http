@@ -1,10 +1,19 @@
-### Get posts
-GET http://localhost:9090/social-media/users/3/posts
-
-HTTP/1.1 200  - OK
+### Creat a user
+POST http://localhost:9090/social-media/users
 content-type: application/json
+
+{
+    "birthDate": {
+        "year": 1987,
+        "month": 02,
+        "day": 06
+    },
+    "name": "X",
+    "mobileNumber": "+94718923456"
+}
+
+HTTP/1.1 201  - Created
+content-length: 0
 connection: close
 server: ballerina
-date: Fri, 13 Jun 2025 10:17:16 +0530
-content-encoding: gzip
-content-length: 202
+date: Fri, 13 Jun 2025 11:37:07 +0530
