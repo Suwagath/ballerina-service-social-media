@@ -76,7 +76,7 @@ type Post record {|
 type NewPost record {
     string description;
     string category;
-    time:Date created_date;
+    time:Date createdDate;
     string tags;
     int userId;
 };
@@ -186,16 +186,16 @@ service /social\-media on new http:Listener(9090) {
             };
             return postForbidden;
         }
-        Sentiment|http:unionResult = check sentimentEndpoint->api/sentiment.post({text: newPost.description});
+        Sentiment sentiment = check sentimentAnalysisClient->/api/sentiment.post({text: newPost.description});
+        if sentiment.label == "negative" {
+            PostForbidden postForbidden = {body: {message: string `id : ${id}`, details: string `users/${id}/posts`, timestamp: time:utcNow()}};
+            return postForbidden;
+        }
 
         _ = check socialMediaDB->execute(
             `INSERT INTO posts(description, category, created_date, tags, user_id) 
-             VALUES (${newPost.description}, ${newPost.category}, ${newPost.created_date}, ${newPost.tags}, ${newPost.userId})`
+             VALUES (${newPost.description}, ${newPost.category}, ${newPost.createdDate}, ${newPost.tags}, ${newPost.userId})`
         );
-
-        if unionResult is Sentiment {
-
-        }
 
         return http:CREATED;
     }

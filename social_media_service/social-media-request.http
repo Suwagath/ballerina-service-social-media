@@ -1,10 +1,10 @@
-### Get users
-GET http://localhost:9090/social-media/users/2
+### Get posts
+GET http://localhost:9090/social-media/users/3/posts
 
 HTTP/1.1 200  - OK
 content-type: application/json
 connection: close
 server: ballerina
-date: Thu, 12 Jun 2025 09:16:44 +0530
+date: Fri, 13 Jun 2025 10:17:16 +0530
 content-encoding: gzip
-content-length: 116
+content-length: 202
